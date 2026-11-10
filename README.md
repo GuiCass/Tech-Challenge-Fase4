@@ -31,7 +31,17 @@ extraídas e amostradas as colunas relevantes para o problema de risco de
 crédito (idade, renda, tempo de emprego, valor do crédito, status familiar,
 educação).
 
-Instruções de download e pré-processamento: ver [`src/credit_monitoring/data/download.py`](src/credit_monitoring/data/download.py).
+Passo a passo para reproduzir o dataset de referência localmente:
+
+```bash
+poetry install
+poetry run python -m credit_monitoring.data.download     # baixa application_train.csv para data/raw/
+poetry run python -m credit_monitoring.data.preprocess    # gera data/reference/credit_reference.csv
+```
+
+Ver [`download.py`](src/credit_monitoring/data/download.py) (instruções/chamada à Kaggle API) e
+[`preprocess.py`](src/credit_monitoring/data/preprocess.py) (seleção de colunas, limpeza e amostragem estratificada por `target`).
+O resultado (`data/reference/credit_reference.csv`) já é versionado no repositório, então rodar o download não é necessário só para explorar o projeto.
 
 ## Estrutura do projeto
 
