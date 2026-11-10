@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# Poetry
+poetry.lock.bak
+
+# Dados brutos (grandes, baixados do Kaggle - nao versionados)
+data/raw/*
+!data/raw/.gitkeep
+
+# Modelos treinados (artefatos binarios, reproduzíveis via pipeline)
+data/model/*
+!data/model/.gitkeep
+
+# MLflow tracking local
+mlruns/
+mlartifacts/
+
+# Credenciais Kaggle (NUNCA versionar)
+kaggle.json
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs do pipeline
+*.log
