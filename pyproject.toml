@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Tech Challenge Fase 4 - Observabilidade continua, deteccao de drift, qualidade de dados e governanca em producao para um modelo de Credit Scoring"
 authors = ["Ana Carol Banhos"]
 readme = "README.md"
-package-mode = false
+packages = [{ include = "credit_monitoring", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -27,4 +27,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "scripts"]
