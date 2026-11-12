@@ -30,3 +30,4 @@ kaggle.json
 
 # Logs do pipeline
 *.log
+logs/
