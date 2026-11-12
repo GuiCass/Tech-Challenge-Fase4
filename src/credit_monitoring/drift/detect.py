@@ -8,6 +8,8 @@ Gera:
 - `reports/drift/drift_report.html`: relatorio visual completo do Evidently.
 - `reports/drift/drift_summary.json`: resumo programatico (quais colunas
   sofreram drift, com qual metrica e score).
+- `reports/drift/drift_summary.md`: resumo legivel por humanos, com a
+  severidade de cada coluna degradada (ver `report.py`).
 
 Uso:
     poetry run python -m credit_monitoring.drift.detect
@@ -23,6 +25,7 @@ from evidently import ColumnMapping
 from evidently.metric_preset import DataDriftPreset
 from evidently.report import Report
 
+from credit_monitoring.drift.report import save_drift_summary_markdown
 from credit_monitoring.model.features import (
     CATEGORICAL_FEATURES,
     NUMERIC_FEATURES,
@@ -34,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 DRIFT_REPORT_HTML_FILE = DRIFT_REPORTS_DIR / "drift_report.html"
 DRIFT_SUMMARY_FILE = DRIFT_REPORTS_DIR / "drift_summary.json"
+DRIFT_SUMMARY_MARKDOWN_FILE = DRIFT_REPORTS_DIR / "drift_summary.md"
 
 
 def build_column_mapping() -> ColumnMapping:
@@ -98,6 +102,9 @@ def run_drift_detection(
     summary = summarize_drift_result(report.as_dict())
     DRIFT_SUMMARY_FILE.write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     logger.info("Resumo de drift salvo em %s", DRIFT_SUMMARY_FILE)
+
+    save_drift_summary_markdown(summary, out_path=DRIFT_SUMMARY_MARKDOWN_FILE)
+    logger.info("Resumo legivel (Markdown) de drift salvo em %s", DRIFT_SUMMARY_MARKDOWN_FILE)
 
     if summary["drifted_columns"]:
         logger.warning(
