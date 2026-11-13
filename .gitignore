@@ -20,6 +20,9 @@ data/model/*
 mlruns/
 mlartifacts/
 
+# Metricas Prometheus (textfile collector, reproduziveis via pipeline)
+metrics/
+
 # Credenciais Kaggle (NUNCA versionar)
 kaggle.json
 
