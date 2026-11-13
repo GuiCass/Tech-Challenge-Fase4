@@ -107,6 +107,91 @@ O **dashboard HTML consolidado** (`reports/dashboard/dashboard.html`, gerado por
 referência/produção e o resumo de drift — hoje espalhados entre `logs/`,
 `mlruns/`, `metrics/` e `reports/drift/`.
 
+## Etapa 4 — Governança e LGPD
+
+### Dados pessoais tratados e minimização
+
+O dataset de referência ([`preprocess.py`](src/credit_monitoring/data/preprocess.py))
+já aplica minimização de dados na origem: do CSV bruto do Home Credit (122
+colunas) são extraídas apenas **17 colunas** diretamente relevantes para o
+risco de crédito (renda, valor do crédito, idade, tempo de emprego,
+escolaridade, estado civil, tipo de moradia, ocupação, etc.). Não há nome,
+CPF, endereço, telefone ou e-mail em nenhuma etapa do pipeline — `client_id`
+é apenas a chave substituta (`SK_ID_CURR`) já anonimizada pela fonte (Kaggle),
+sem relação com documentos reais.
+
+Dentre as colunas mantidas, `gender` é **dado pessoal** mas não se qualifica
+como **dado sensível** pela enumeração taxativa do Art. 5º, II da LGPD
+(origem racial/étnica, convicção religiosa, opinião política, dado referente
+à saúde/vida sexual, dado genético ou biométrico). Ainda assim, por ser um
+atributo com potencial discriminatório, seu uso é tratado com atenção
+especial na seção de [mitigação de viés](#mitigação-de-viés-e-discriminação-algorítmica)
+abaixo, em vez de ser simplesmente removido — removê-lo sem monitorar não
+eliminaria um eventual viés codificado em variáveis correlacionadas
+(`education`, `occupation_type`, `organization_type`).
+
+### Base legal para a decisão de crédito
+
+O tratamento dos dados para o scoring de crédito se apoia no **Art. 7º, X da
+LGPD** — tratamento de dados pessoais para "proteção do crédito", hipótese
+prevista especificamente para esse caso de uso, sem depender do consentimento
+individual do titular a cada concessão. Isso não dispensa os demais deveres
+da LGPD: transparência sobre os critérios gerais da decisão (Art. 20, §1º) e
+possibilidade de solicitação de revisão (próxima seção).
+
+### Direito à revisão humana das decisões automatizadas
+
+O Art. 20 da LGPD garante ao titular o direito de solicitar **revisão de
+decisões tomadas unicamente com base em tratamento automatizado** de dados
+pessoais que afetem seus interesses — o exemplo canônico da lei é justamente
+a concessão de crédito. Na prática operacional isso significa que o score
+produzido por este pipeline (`predicted_proba` / `predicted_label` em
+[`predict.py`](src/credit_monitoring/model/predict.py)) deve alimentar uma
+decisão sujeita a contestação e revisão humana, nunca ser a palavra final e
+automática sobre a concessão do crédito.
+
+### Retenção e descarte
+
+- **Dado bruto** (`data/raw/application_train.csv`, baixado do Kaggle) nunca é
+  versionado (`.gitignore`) e deve ser descartado localmente assim que o
+  dataset de referência for gerado — não há necessidade de retê-lo.
+- **Dataset de referência** (`data/reference/credit_reference.csv`) é uma
+  amostra agregada (~25 mil linhas, sem identificadores reais) mantida apenas
+  enquanto for necessária para treinar/auditar o modelo em produção; numa
+  implantação real, deveria seguir o mesmo prazo de guarda de dados usados em
+  decisão de crédito exigido pelo regulador do setor (ex.: Bacen), e ser
+  reamostrada/descartada ao final desse ciclo.
+- **Dataset de produção simulado** (`data/production/`) e as predições
+  derivadas são artefatos de monitoramento, não dados reais de clientes —
+  não há titular a proteger nesse caso, mas o mesmo prazo de retenção do
+  dataset de referência é aplicado por consistência.
+- **Artefatos de observabilidade** (`logs/`, `mlruns/`, `metrics/`) guardam
+  apenas metadados operacionais do pipeline (status, duração, métricas
+  agregadas) — nenhum dado pessoal individualizado circula por esses
+  mecanismos.
+
+### Mitigação de viés e discriminação algorítmica
+
+O dataset de referência carrega atributos que podem servir de proxy para
+discriminação indireta (`gender`, `education`, `family_status`,
+`housing_type`, `occupation_type`, `organization_type`, `region_rating`).
+Duas frentes deste projeto já apoiam a mitigação de viés, e podem ser
+estendidas:
+
+1. **Monitoramento de drift por feature** ([`drift/detect.py`](src/credit_monitoring/drift/detect.py))
+   já quebra o resultado por coluna — o mesmo mecanismo usado para detectar
+   degradação do modelo serve para detectar quando a distribuição de um
+   atributo sensível/proxy muda de forma desproporcional em relação às
+   demais, um sinal de alerta precoce de viés introduzido por mudança na
+   população de entrada.
+2. **Métricas de score desagregadas**: o `score_comparison.json` gerado por
+   [`predict.py`](src/credit_monitoring/model/predict.py) compara a
+   distribuição de scores entre referência e produção; o próximo passo
+   natural (fora do escopo deste desafio) é desagregar essa mesma comparação
+   por grupo (ex.: por `gender` ou faixa de `education`) para detectar
+   impacto desproporcional (*disparate impact*) antes de um novo modelo ir
+   para produção.
+
 ---
 
-*As seções restantes (Governança/LGPD) serão preenchidas na Etapa 4.*
+*A seção [Vídeo STAR](#vídeo-star) será preenchida na consolidação final do README.*
