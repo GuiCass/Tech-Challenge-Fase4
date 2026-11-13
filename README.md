@@ -56,6 +56,57 @@ reports/          # relatórios HTML de drift e dashboard de observabilidade
 tests/            # testes automatizados (pytest)
 ```
 
+## Como rodar o projeto
+
+Com o dataset de referência já versionado em `data/reference/` (ver
+[Dataset](#dataset)), o pipeline completo roda ponta a ponta com:
+
+```bash
+poetry install
+poetry run python scripts/run_pipeline.py
+```
+
+Isso executa, em sequência, **validação de dados → treino do modelo →
+predição/scoring em produção → detecção de drift**, e produz:
+
+- `data/model/baseline_model.joblib` — pipeline treinado (pré-processamento + XGBoost).
+- `reports/baseline_model_metrics.json`, `reports/score_comparison.json` — métricas do modelo e comparação de scores.
+- `reports/drift/drift_report.html` e `drift_summary.md` — relatório visual e resumo de drift (Evidently).
+- `reports/dashboard/dashboard.html` — **dashboard consolidado** com o resultado de cada etapa, métricas do modelo, comparação de scores e drift.
+- `logs/pipeline.log` e `logs/pipeline_events.jsonl` — log estruturado de cada execução.
+- `mlruns/` — experimentos registrados no MLflow (`mlflow ui` para inspecionar).
+- `metrics/pipeline_metrics.prom` — métricas no formato Prometheus (textfile collector).
+
+## Etapa 3 — Observabilidade de Pipelines e Modelos
+
+A observabilidade do pipeline combina três mecanismos complementares,
+orquestrados por [`monitoring/pipeline_runner.py`](src/credit_monitoring/monitoring/pipeline_runner.py):
+
+1. **Logging estruturado** ([`monitoring/logging_config.py`](src/credit_monitoring/monitoring/logging_config.py)) — cada etapa
+   (`validacao_dados`, `treino_modelo`, `predicao`, `deteccao_drift`) é
+   registrada como um evento em JSON Lines (`logs/pipeline_events.jsonl`),
+   com status (`success`/`failure`), duração e metadados. Falhas são
+   relançadas após o registro, então um erro em qualquer etapa interrompe o
+   pipeline de forma visível.
+2. **Rastreamento de experimentos (MLflow)** — cada etapa roda dentro de um
+   MLflow run, registrando parâmetros do modelo, métricas (accuracy,
+   ROC-AUC, F1, colunas com drift) e artefatos (modelo serializado,
+   relatórios de drift) — permitindo comparar execuções ao longo do tempo.
+3. **Métricas Prometheus** ([`monitoring/metrics.py`](src/credit_monitoring/monitoring/metrics.py)) — expostas no
+   padrão *textfile collector* (`metrics/pipeline_metrics.prom`), já que o
+   pipeline roda em lote, não como serviço de longa duração:
+   - `pipeline_stage_runs_total{stage,status}` — nº de execuções de cada etapa, por status (saúde operacional do pipeline).
+   - `pipeline_stage_duration_seconds{stage}` — latência de cada etapa (histograma).
+   - `pipeline_rows_processed{stage}` — volume de linhas processadas na última execução de cada etapa.
+   - `pipeline_last_run_timestamp_seconds{stage,status}` — quando cada etapa rodou por último (detecta pipelines parados/"silenciosos").
+   - `pipeline_drift_alerts_total` — nº de execuções em que drift foi detectado no dataset de produção (alerta de degradação do modelo).
+
+O **dashboard HTML consolidado** (`reports/dashboard/dashboard.html`, gerado por
+[`monitoring/dashboard.py`](src/credit_monitoring/monitoring/dashboard.py)) reúne, numa única página, os eventos da
+última execução, as métricas do modelo, a comparação de scores
+referência/produção e o resumo de drift — hoje espalhados entre `logs/`,
+`mlruns/`, `metrics/` e `reports/drift/`.
+
 ---
 
-*As seções abaixo serão preenchidas progressivamente ao longo das Etapas 1 a 4.*
+*As seções restantes (Governança/LGPD) serão preenchidas na Etapa 4.*
